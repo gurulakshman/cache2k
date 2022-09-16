@@ -1,0 +1,70 @@
+version: 2.1
+
+orbs:
+  android: circleci/android@2.0.0
+
+jobs:
+  maven-test:
+    docker:
+      - image: cimg/openjdk:11.0
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: mvn -B -DskipTests clean package
+      - run:
+          name: Test
+          command: mvn test
+
+  android-test:
+    parameters:
+      api-level:
+        type: integer
+      working-dir:
+        type: string
+        default: test-android-gradle
+    executor:
+      name: android/android-machine
+      tag: 2021.10.1
+    environment:
+      JVM_OPTS: -Dfile.encoding=utf-8
+    steps:
+      - checkout
+      - run:
+          name: Display version
+          command: ./gradlew --version
+          working_directory: << parameters.working-dir >>
+      - android/restore-gradle-cache
+      - android/restore-build-cache
+      - android/start-emulator-and-run-tests:
+          system-image: system-images;android-<< parameters.api-level >>;default;x86_64
+          post-emulator-launch-assemble-command: cd << parameters.working-dir >> && ./gradlew assembleDebugAndroidTest
+          test-command: cd << parameters.working-dir >> && ./gradlew connectedDebugAndroidTest
+      - android/save-gradle-cache
+      - android/save-build-cache
+      - run:
+          name: Save test results
+          command: |
+            mkdir -p ~/test-results/android-<< parameters.api-level >>/
+            find . -type f -regex ".*/build/outputs/androidTest-results/.*xml" -exec cp {} ~/test-results/android-<< parameters.api-level >>/ \;
+          working_directory: << parameters.working-dir >>
+          when: always
+      - store_test_results:
+          path: ~/test-results
+      - store_artifacts:
+          path: ~/test-results/android-<< parameters.api-level >>
+
+workflows:
+  full-check:
+    jobs:
+      - maven-test
+      - android-test:
+          name: android-test-26
+          api-level: 26
+          requires:
+            - maven-test
+      - android-test:
+          name: android-test-30
+          api-level: 30
+          requires:
+            - android-test-26

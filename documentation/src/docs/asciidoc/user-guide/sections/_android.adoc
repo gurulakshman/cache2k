@@ -1,0 +1,42 @@
+[[android]]
+== Android
+
+cache2k version 1 is compatible with Java 6 and Android. Regular testing is done against API level 16.
+cache2k version 2 is compatible with API level 26. Regular CI testing with Android is
+implemented, see [GH#143](https://github.com/cache2k/cache2k/issues/143).
+
+=== Usage
+
+For cache2k version 1.1 and above, include the following dependency:
+
+[source,groovy,subs="attributes+"]
+----
+    implementation 'org.cache2k:cache2k-api:{cache2k_version}'
+    runtimeOnly 'org.cache2k:cache2k-core:{cache2k_version}'
+----
+
+=== Proguard Rules
+
+To minimize the footprint of the application the unused code can be removed via Proguard rules.
+This example might be outdated. Please give feedback if a different setting works better.
+
+[source]
+----
+# mandatory proguard rules for cache2k to keep the core implementation
+-dontwarn org.slf4j.**
+# TODO: the following -dontwarn are probably not needed any more
+-dontwarn javax.cache.**
+-dontwarn javax.management.**
+-dontwarn javax.naming.**
+-keep interface org.cache2k.spi.Cache2kCoreProvider
+-keep public class * extends org.cache2k.spi.Cache2kCoreProvider
+
+# optional proguard rules for cache2k, to keep XML configuration code
+# if only programmatic configuration is used, these rules may be ommitted
+-keep interface org.cache2k.core.spi.CacheConfigurationProvider
+-keep public class * extends org.cache2k.core.spi.CacheConfigurationProvider
+-keepclassmembers public class * extends org.cache2k.configuration.ConfigurationBean {
+    public void set*(...);
+    public ** get*();
+}
+----
